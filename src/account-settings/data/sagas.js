@@ -97,8 +97,12 @@ export function* handleSaveSettings(action) {
 
       yield put(savePreviousSiteLanguage(previousSiteLanguage));
 
-      publish(LOCALE_CHANGED, getLocale());
+      publish(LOCALE_CHANGED, commitValues);
       handleRtl();
+      
+      // Force a page reload to ensure the language change takes effect immediately
+      window.location.reload();
+      
       savedValues = commitData;
     } else {
       savedValues = yield call(patchSettings, username, commitData, userId);
