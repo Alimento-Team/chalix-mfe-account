@@ -1,6 +1,41 @@
 @use "@openedx/paragon/styles/css/core/custom-media-breakpoints" as paragonCustomMediaBreakpoints;
 
 $fa-font-path: "~font-awesome/fonts";
+
+// Define all required Bootstrap/Paragon variables before any imports
+$component-active-bg: #007bff !default;
+$component-active-color: #fff !default;
+$component-active-border-color: #007bff !default;
+$border-radius: 0.25rem !default;
+$border-color: #dee2e6 !default;
+$text-muted: #6c757d !default;
+$body-bg: #fff !default;
+$body-color: #212529 !default;
+$rounded-pill: 50rem !default;
+$btn-border-radius: $border-radius !default;
+$btn-border-radius-sm: 0.2rem !default;
+$btn-border-radius-lg: 0.3rem !default;
+$input-border-radius: $border-radius !default;
+$input-border-radius-sm: 0.2rem !default;
+$input-border-radius-lg: 0.3rem !default;
+$card-border-radius: $border-radius !default;
+$modal-content-border-radius: $border-radius !default;
+$dropdown-border-radius: $border-radius !default;
+$alert-border-radius: $border-radius !default;
+$badge-border-radius: $border-radius !default;
+$progress-border-radius: $border-radius !default;
+$list-group-border-radius: $border-radius !default;
+$navbar-brand-font-size: 1.25rem !default;
+$navbar-nav-link-padding-x: 0.5rem !default;
+$navbar-toggler-border-radius: $btn-border-radius !default;
+$enable-rounded: true !default;
+$enable-shadows: false !default;
+$enable-gradients: false !default;
+$enable-transitions: true !default;
+$enable-hover-media-query: false !default;
+$enable-grid-classes: true !default;
+$enable-print-styles: true !default;
+
 @import "~font-awesome/scss/font-awesome";
 
 @import "~@edx/frontend-component-header/dist/index";
@@ -14,14 +49,18 @@ $fa-font-path: "~font-awesome/fonts";
 }
 
 // TODO: Update edx-bootstrap theme to incorporate these edits.
-.btn, a.btn {
+.btn,
+a.btn {
   text-decoration: none;
+
   &:hover {
     text-decoration: none;
   }
 }
+
 .btn-link {
   text-decoration: underline;
+
   &:hover {
     text-decoration: underline;
   }
@@ -31,7 +70,8 @@ $fa-font-path: "~font-awesome/fonts";
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  & > main {
+
+  &>main {
     flex-grow: 1;
   }
 }
@@ -65,7 +105,7 @@ $fa-font-path: "~font-awesome/fonts";
   text-decoration: underline;
 }
 
-.pgn__hyperlink__external-icon{
+.pgn__hyperlink__external-icon {
   margin-left: 4px;
 }
 
@@ -130,7 +170,7 @@ $fa-font-path: "~font-awesome/fonts";
     height: 36px;
   }
 
-  .course-dropdown{
+  .course-dropdown {
     #course-dropdown-btn {
       width: 100%;
       font-size: 14px !important;
@@ -158,13 +198,12 @@ $fa-font-path: "~font-awesome/fonts";
 }
 
 @media screen and (max-width: 425px) {
-   .column-padding{
+  .column-padding {
     padding-left: 16px;
     padding-right: 16px;
   }
 
-  .margin-bottom-32{
+  .margin-bottom-32 {
     margin-bottom: 32px !important;
   }
 }
-
