@@ -64,6 +64,12 @@ initialize({
   handlers: {
     config: () => {
       mergeConfig({
+        // Ensure platform PUBLIC_PATH is available to routing and link builders
+        PUBLIC_PATH: process.env.PUBLIC_PATH || getConfig?.PUBLIC_PATH || '/account/',
+        // Also populate common MFE URLs from env for header/footer components
+        ACCOUNT_SETTINGS_URL: process.env.ACCOUNT_SETTINGS_URL,
+        ACCOUNT_PROFILE_URL: process.env.ACCOUNT_PROFILE_URL,
+        LMS_BASE_URL: process.env.LMS_BASE_URL,
         SUPPORT_URL: process.env.SUPPORT_URL,
         SHOW_PUSH_CHANNEL: process.env.SHOW_PUSH_CHANNEL === 'true',
         SHOW_EMAIL_CHANNEL: process.env.SHOW_EMAIL_CHANNEL || 'false',
