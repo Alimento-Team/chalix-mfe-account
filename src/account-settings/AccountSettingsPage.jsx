@@ -72,17 +72,92 @@ class AccountSettingsPage extends React.Component {
       '#linked-accounts': React.createRef(),
       '#delete-account': React.createRef(),
     };
+    this.state = {
+      ...this.state,
+      avatarPreviewUrl: null,
+      avatarUploading: false,
+      avatarError: null,
+    };
+  }
+
+  handleAvatarSelected = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this.setState({ avatarPreviewUrl: e.target.result, avatarError: null });
+    };
+    reader.readAsDataURL(file);
+    this.uploadAvatar(file);
+  }
+
+  uploadAvatar = async (file) => {
+    this.setState({ avatarUploading: true, avatarError: null });
+    try {
+      const username = this.props.formValues.username || this.context.authenticatedUser.username;
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const resp = await fetch(`/api/user/v1/accounts/${username}/image`, {
+        method: 'POST',
+        body: formData,
+        // Credentials handled by browser cookies/auth; JWT handled elsewhere
+      });
+
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({}));
+        throw new Error(body.user_message || body.developer_message || `Upload failed with status ${resp.status}`);
+      }
+
+      // Refresh settings to pick up new profile_image_uploaded_at
+      this.props.fetchSettings();
+      this.setState({ avatarUploading: false });
+    } catch (err) {
+      this.setState({ avatarUploading: false, avatarError: err.message });
+    }
+  }
+
+  handleAvatarRemove = async () => {
+    this.setState({ avatarUploading: true, avatarError: null });
+    try {
+      const username = this.props.formValues.username || this.context.authenticatedUser.username;
+      const resp = await fetch(`/api/user/v1/accounts/${username}/image`, {
+        method: 'DELETE',
+      });
+      if (!resp.ok) throw new Error(`Remove failed with status ${resp.status}`);
+      this.props.fetchSettings();
+      this.setState({ avatarPreviewUrl: null, avatarUploading: false });
+    } catch (err) {
+      this.setState({ avatarUploading: false, avatarError: err.message });
+    }
   }
 
   componentDidMount() {
     this.props.fetchCourseList();
     this.props.fetchSettings();
     this.props.fetchSiteLanguages(this.props.navigate);
+    this.loadCurrentAvatar();
     sendTrackingLogEvent('edx.user.settings.viewed', {
       page: 'account',
       visibility: null,
       user_id: this.context.authenticatedUser.userId,
     });
+  }
+
+  async loadCurrentAvatar() {
+    try {
+      const username = this.props.formValues?.username || this.context.authenticatedUser.username;
+      const resp = await fetch(`/api/user/v1/accounts/${username}/`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      // Backend helper returns profile image URLs under profile_image when present
+      if (data && data.profile_image && data.profile_image.profile_image_medium) {
+        // Some templates use 'medium' key; fall back to 'medium' or 'profile_image_medium'
+        const url = data.profile_image.medium || data.profile_image.profile_image_medium || data.profile_image.profile_image || null;
+        if (url) this.setState({ avatarPreviewUrl: url });
+      }
+    } catch (err) {
+      // ignore
+    }
   }
 
   componentDidUpdate(prevProps) {
@@ -843,19 +918,37 @@ class AccountSettingsPage extends React.Component {
               <div className="profile-card">
                 <div className="profile-avatar text-center mb-3">
                   <div className="avatar-circle mx-auto">
-                    <svg width="50" height="50" viewBox="0 0 50 50" fill="none">
-                      <circle cx="25" cy="18" r="8" fill="#1a1a1a"/>
-                      <path d="M10 45 C10 35, 15 30, 25 30 S40 35, 40 45" fill="#1a1a1a"/>
-                    </svg>
+                    {this.state.avatarPreviewUrl ? (
+                      <img src={this.state.avatarPreviewUrl} alt="avatar preview" className="img-fluid rounded-circle" />
+                    ) : (
+                      <svg width="50" height="50" viewBox="0 0 50 50" fill="none">
+                        <circle cx="25" cy="18" r="8" fill="#1a1a1a"/>
+                        <path d="M10 45 C10 35, 15 30, 25 30 S40 35, 40 45" fill="#1a1a1a"/>
+                      </svg>
+                    )}
+                  </div>
+
+                  <div className="mt-2">
+                    <input
+                      id="avatar-file-input"
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(e) => this.handleAvatarSelected(e.target.files[0])}
+                    />
+                    <label htmlFor="avatar-file-input" className="btn btn-link btn-sm">Thay đổi ảnh</label>
+                    <button type="button" className="btn btn-link btn-sm text-danger" onClick={this.handleAvatarRemove}>Xóa</button>
+                    {this.state.avatarUploading ? <div className="small text-muted">Đang tải...</div> : null}
+                    {this.state.avatarError ? <div className="small text-danger">{this.state.avatarError}</div> : null}
                   </div>
                 </div>
+
                 <div className="profile-name text-center font-weight-bold text-uppercase">{this.context.authenticatedUser.name || 'NGUYỄN VĂN A'}</div>
                 <div className="profile-joined text-center text-muted small">{formatJoinDate}</div>
 
                 <nav className="profile-nav list-unstyled">
                   <li className="profile-nav-item">Trang chủ</li>
                   <li className="profile-nav-item active">Thông tin cá nhân</li>
-                  <li className="profile-nav-item">Khóa học của tôi</li>
                   <li className="profile-nav-item">Kết quả thi</li>
                   <li className="profile-nav-item">Thông số cá nhân</li>
                   <li className="profile-nav-item">Thông báo</li>
