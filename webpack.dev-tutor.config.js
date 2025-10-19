@@ -15,6 +15,14 @@ module.exports = merge(baseDevConfig, {
     // https://github.com/webpack/webpack-dev-server/blob/master/migration-v4.md
     allowedHosts: 'all',
     proxy: {
+      // Proxy common API calls to the LMS backend so requests made from the
+      // webpack dev server (apps.local.openedx.io:1997) reach the Django API
+      // running at local.openedx.io:8000.
+      '/api': {
+        target: 'http://local.openedx.io:8000',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api/mfe_config/v1': {
         target: 'http://local.openedx.io:8000',
         changeOrigin: true,

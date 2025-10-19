@@ -77,17 +77,32 @@ class AccountSettingsPage extends React.Component {
       avatarPreviewUrl: null,
       avatarUploading: false,
       avatarError: null,
+      // Cropper state
+      showCropper: false,
+      cropImageSrc: null,
+      cropBoxSize: 200,
+      cropOffsetX: 0,
+      cropOffsetY: 0,
+      cropScale: 1,
+      cropDisplayedWidth: 0,
+      cropDisplayedHeight: 0,
     };
+
+    // Refs and drag state for cropper
+    this.cropImageRef = React.createRef();
+    this.cropContainerRef = React.createRef();
+    this._dragState = { dragging: false, startX: 0, startY: 0, startOffsetX: 0, startOffsetY: 0 };
   }
 
   handleAvatarSelected = (file) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (e) => {
-      this.setState({ avatarPreviewUrl: e.target.result, avatarError: null });
+      // Open cropper with the selected image instead of uploading immediately
+      this.selectedAvatarFile = file;
+      this.setState({ cropImageSrc: e.target.result, showCropper: true, avatarError: null });
     };
     reader.readAsDataURL(file);
-    this.uploadAvatar(file);
   }
 
   uploadAvatar = async (file) => {
@@ -129,6 +144,98 @@ class AccountSettingsPage extends React.Component {
     } catch (err) {
       this.setState({ avatarUploading: false, avatarError: err.message });
     }
+  }
+
+  // Cropper helpers
+  handleCropImageLoad = (e) => {
+    const img = e.target;
+    const naturalWidth = img.naturalWidth;
+    const naturalHeight = img.naturalHeight;
+    const box = this.state.cropBoxSize;
+    // scale so smaller dimension fills the box
+    const scale = box / Math.min(naturalWidth, naturalHeight);
+    const displayedWidth = naturalWidth * scale;
+    const displayedHeight = naturalHeight * scale;
+    const offsetX = (box - displayedWidth) / 2;
+    const offsetY = (box - displayedHeight) / 2;
+    this.setState({ cropScale: scale, cropDisplayedWidth: displayedWidth, cropDisplayedHeight: displayedHeight, cropOffsetX: offsetX, cropOffsetY: offsetY });
+  }
+
+  onCropMouseDown = (e) => {
+    e.preventDefault();
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    this._dragState.dragging = true;
+    this._dragState.startX = clientX;
+    this._dragState.startY = clientY;
+    this._dragState.startOffsetX = this.state.cropOffsetX;
+    this._dragState.startOffsetY = this.state.cropOffsetY;
+    window.addEventListener('mousemove', this.onCropMouseMove);
+    window.addEventListener('mouseup', this.onCropMouseUp);
+    window.addEventListener('touchmove', this.onCropMouseMove, { passive: false });
+    window.addEventListener('touchend', this.onCropMouseUp);
+  }
+
+  onCropMouseMove = (e) => {
+    if (!this._dragState.dragging) return;
+    e.preventDefault();
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    const dx = clientX - this._dragState.startX;
+    const dy = clientY - this._dragState.startY;
+    const newX = this._dragState.startOffsetX + dx;
+    const newY = this._dragState.startOffsetY + dy;
+    // constrain so image always covers the box
+    const minX = this.state.cropBoxSize - this.state.cropDisplayedWidth;
+    const maxX = 0;
+    const minY = this.state.cropBoxSize - this.state.cropDisplayedHeight;
+    const maxY = 0;
+    this.setState({ cropOffsetX: Math.min(maxX, Math.max(minX, newX)), cropOffsetY: Math.min(maxY, Math.max(minY, newY)) });
+  }
+
+  onCropMouseUp = () => {
+    this._dragState.dragging = false;
+    window.removeEventListener('mousemove', this.onCropMouseMove);
+    window.removeEventListener('mouseup', this.onCropMouseUp);
+    window.removeEventListener('touchmove', this.onCropMouseMove);
+    window.removeEventListener('touchend', this.onCropMouseUp);
+  }
+
+  handleCropCancel = () => {
+    this.setState({ showCropper: false, cropImageSrc: null });
+  }
+
+  handleCropConfirm = () => {
+    const box = this.state.cropBoxSize;
+    const canvas = document.createElement('canvas');
+    canvas.width = box;
+    canvas.height = box;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, box, box);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(box / 2, box / 2, box / 2, 0, Math.PI * 2);
+    ctx.clip();
+    const img = this.cropImageRef.current;
+    if (!img) {
+      this.setState({ avatarError: 'Crop failed: image not ready', showCropper: false, cropImageSrc: null });
+      return;
+    }
+    // draw the displayed image portion into the canvas
+    ctx.drawImage(img, this.state.cropOffsetX, this.state.cropOffsetY, this.state.cropDisplayedWidth, this.state.cropDisplayedHeight);
+    ctx.restore();
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        this.setState({ avatarError: 'Crop failed', showCropper: false, cropImageSrc: null });
+        return;
+      }
+      // Create a File so uploadAvatar can operate as before
+      const file = new File([blob], this.selectedAvatarFile ? this.selectedAvatarFile.name : 'avatar.png', { type: blob.type });
+      // update preview to the cropped image and upload
+      const url = URL.createObjectURL(blob);
+      this.setState({ avatarPreviewUrl: url, showCropper: false, cropImageSrc: null });
+      this.uploadAvatar(file);
+    }, 'image/png');
   }
 
   componentDidMount() {
@@ -409,6 +516,70 @@ class AccountSettingsPage extends React.Component {
       />
     );
   };
+
+  renderCropper = () => {
+    if (!this.state.showCropper || !this.state.cropImageSrc) return null;
+    const box = this.state.cropBoxSize;
+    const imgStyle = {
+      position: 'absolute',
+      left: `${this.state.cropOffsetX}px`,
+      top: `${this.state.cropOffsetY}px`,
+      width: `${this.state.cropDisplayedWidth}px`,
+      height: `${this.state.cropDisplayedHeight}px`,
+      cursor: 'grab',
+      userSelect: 'none',
+    };
+
+    const overlayStyle = {
+      position: 'fixed',
+      left: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0,0,0,0.6)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1050,
+    };
+
+    const boxStyle = {
+      width: `${box}px`,
+      height: `${box}px`,
+      position: 'relative',
+      overflow: 'hidden',
+      borderRadius: '50%',
+      background: '#fff',
+    };
+
+    const helperStyle = {
+      display: 'flex',
+      gap: '8px',
+      justifyContent: 'center',
+      marginTop: '12px',
+    };
+
+    return (
+      <div style={overlayStyle} onMouseDown={(e) => e.stopPropagation()}>
+        <div style={{ textAlign: 'center' }}>
+          <div ref={this.cropContainerRef} style={boxStyle} onMouseDown={this.onCropMouseDown} onTouchStart={this.onCropMouseDown}>
+            <img
+              ref={this.cropImageRef}
+              src={this.state.cropImageSrc}
+              alt="crop"
+              style={imgStyle}
+              onLoad={this.handleCropImageLoad}
+              draggable={false}
+            />
+          </div>
+          <div style={helperStyle}>
+            <button type="button" className="btn btn-secondary" onClick={this.handleCropCancel}>Hủy</button>
+            <button type="button" className="btn btn-primary" onClick={this.handleCropConfirm}>Xác nhận</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   renderVerifiedNameFailureMessage = (verifiedName, created) => {
     const dateValue = new Date(created).valueOf();
@@ -937,11 +1108,12 @@ class AccountSettingsPage extends React.Component {
                       onChange={(e) => this.handleAvatarSelected(e.target.files[0])}
                     />
                     <label htmlFor="avatar-file-input" className="btn btn-link btn-sm">Thay đổi ảnh</label>
-                    <button type="button" className="btn btn-link btn-sm text-danger" onClick={this.handleAvatarRemove}>Xóa</button>
                     {this.state.avatarUploading ? <div className="small text-muted">Đang tải...</div> : null}
                     {this.state.avatarError ? <div className="small text-danger">{this.state.avatarError}</div> : null}
                   </div>
                 </div>
+
+                {this.renderCropper ? this.renderCropper() : null}
 
                 <div className="profile-name text-center font-weight-bold text-uppercase">{this.context.authenticatedUser.name || 'NGUYỄN VĂN A'}</div>
                 <div className="profile-joined text-center text-muted small">{formatJoinDate}</div>
