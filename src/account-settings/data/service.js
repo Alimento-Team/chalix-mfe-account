@@ -211,17 +211,42 @@ export async function getCountryList() {
  * This contains dropdown options for configurable fields like job_title
  */
 export async function getExtraFieldOptions() {
-  const url = `${getConfig().LMS_BASE_URL}/api/mfe_config/v1?mfe=account`;
-
+  // Use LMS proxy endpoint to avoid CORS issues when calling CMS
+  const lmsBaseUrl = getConfig().LMS_BASE_URL;
+  
   try {
-    const { data } = await getAuthenticatedHttpClient().get(url);
-    console.log('MFE Config API Response:', data);
-    console.log('EXTRA_FIELD_OPTIONS:', data.EXTRA_FIELD_OPTIONS);
-    return data.EXTRA_FIELD_OPTIONS || {};
+    // Fetch professional fields via LMS proxy endpoint
+    const professionalFieldsUrl = `${lmsBaseUrl}/api/chalix/user-menu/professional-fields/`;
+    const { data: professionalFieldsData } = await getAuthenticatedHttpClient().get(professionalFieldsUrl);
+    
+    console.log('Professional Fields API Response:', professionalFieldsData);
+    
+    // Extract field names from the response
+    let jobTitleOptions = [];
+    if (professionalFieldsData.professional_fields && Array.isArray(professionalFieldsData.professional_fields)) {
+      jobTitleOptions = professionalFieldsData.professional_fields.map(field => field.name);
+    }
+    
+    console.log('Extracted job_title options:', jobTitleOptions);
+    
+    return {
+      job_title: jobTitleOptions
+    };
   } catch (e) {
-    console.error('Error fetching EXTRA_FIELD_OPTIONS:', e);
-    logError(e);
-    return {};
+    console.error('Error fetching professional fields:', e);
+    
+    // Fallback to MFE config API
+    try {
+      const url = `${getConfig().LMS_BASE_URL}/api/mfe_config/v1?mfe=account`;
+      const { data } = await getAuthenticatedHttpClient().get(url);
+      console.log('Fallback to MFE Config API Response:', data);
+      console.log('EXTRA_FIELD_OPTIONS:', data.EXTRA_FIELD_OPTIONS);
+      return data.EXTRA_FIELD_OPTIONS || {};
+    } catch (fallbackError) {
+      console.error('Error fetching EXTRA_FIELD_OPTIONS from fallback:', fallbackError);
+      logError(fallbackError);
+      return {};
+    }
   }
 }
 

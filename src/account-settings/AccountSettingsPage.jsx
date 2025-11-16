@@ -882,11 +882,15 @@ class AccountSettingsPage extends React.Component {
                   onChange={(e) => this.handleEditableFieldChange('job_title', e.target.value)}
                 >
                   <option value="">Chọn lĩnh vực chuyên môn</option>
-                  {this.props.extraFieldOptions.job_title && this.props.extraFieldOptions.job_title.map((option) => (
-                    <option key={option.toLowerCase()} value={option.toLowerCase()}>
-                      {option}
-                    </option>
-                  ))}
+                  {(() => {
+                    console.log('[Professional Fields Debug] extraFieldOptions:', this.props.extraFieldOptions);
+                    console.log('[Professional Fields Debug] job_title:', this.props.extraFieldOptions?.job_title);
+                    return this.props.extraFieldOptions?.job_title?.map((option) => (
+                      <option key={option.toLowerCase()} value={option.toLowerCase()}>
+                        {option}
+                      </option>
+                    ));
+                  })()}
                 </select>
               </div>
             </div>
