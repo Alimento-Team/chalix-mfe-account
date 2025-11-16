@@ -13,6 +13,8 @@ import { Route, Routes, Outlet } from 'react-router-dom';
 
 import Header from '@edx/frontend-component-header';
 import { FooterSlot } from '@edx/frontend-component-footer';
+import { ChalixHeaderWithUserPopup } from '@chalix/frontend-component-header';
+import { getConfig } from '@edx/frontend-platform';
 
 import configureStore from './data/configureStore';
 import AccountSettingsPage, { NotFoundPage } from './account-settings';
@@ -24,6 +26,41 @@ import Head from './head/Head';
 
 const rootNode = createRoot(document.getElementById('root'));
 subscribe(APP_READY, () => {
+  // Handler for header navigation
+  const handleHeaderNavigation = (tab) => {
+    const config = getConfig();
+    const lmsBaseUrl = config.LMS_BASE_URL || '';
+    
+    const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname.includes('local.openedx.io');
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    
+    switch (tab) {
+      case 'home':
+        window.location.href = `${lmsBaseUrl}/`;
+        break;
+      case 'category':
+        window.location.href = `${lmsBaseUrl}/courses`;
+        break;
+      case 'learning':
+        if (isDevelopment) {
+          window.location.href = `${protocol}//${hostname}:1996/learner-dashboard/`;
+        } else {
+          window.location.href = `${lmsBaseUrl}/dashboard`;
+        }
+        break;
+      case 'personalize':
+        if (isDevelopment) {
+          window.location.href = `${protocol}//${hostname}:1996/learner-dashboard/?tab=personalized`;
+        } else {
+          window.location.href = `${lmsBaseUrl}/dashboard?tab=personalized`;
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
   rootNode.render(
     <StrictMode>
       <AppProvider store={configureStore()}>
@@ -31,7 +68,13 @@ subscribe(APP_READY, () => {
         <Routes>
           <Route element={(
             <div className="d-flex flex-column" style={{ minHeight: '100vh' }}>
-              <Header />
+              <ChalixHeaderWithUserPopup
+                organizationTitle="PHẦN MỀM HỌC TẬP THÔNG MINH DÀNH CHO CÔNG CHỨC, VIÊN CHỨC"
+                searchPlaceholder="Nhập từ khóa tìm kiếm"
+                baseApiUrl={getConfig().LMS_BASE_URL || ''}
+                logoutUrl="/logout"
+                onNavigate={handleHeaderNavigation}
+              />
               <main className="flex-grow-1" id="main">
                 <Outlet />
               </main>
