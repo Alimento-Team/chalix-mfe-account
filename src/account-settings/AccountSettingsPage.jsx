@@ -108,41 +108,57 @@ class AccountSettingsPage extends React.Component {
   uploadAvatar = async (file) => {
     this.setState({ avatarUploading: true, avatarError: null });
     try {
+      const { getAuthenticatedHttpClient } = await import('@edx/frontend-platform/auth');
       const username = this.props.formValues.username || this.context.authenticatedUser.username;
       const formData = new FormData();
       formData.append('file', file);
 
-      const resp = await fetch(`/api/user/v1/accounts/${username}/image`, {
-        method: 'POST',
-        body: formData,
-        // Credentials handled by browser cookies/auth; JWT handled elsewhere
-      });
-
-      if (!resp.ok) {
-        const body = await resp.json().catch(() => ({}));
-        throw new Error(body.user_message || body.developer_message || `Upload failed with status ${resp.status}`);
-      }
+      const resp = await getAuthenticatedHttpClient().post(
+        `${getConfig().LMS_BASE_URL}/api/user/v1/accounts/${username}/image`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
 
       // Refresh settings to pick up new profile_image_uploaded_at
       this.props.fetchSettings();
+      
+      // Wait a moment for backend to process, then reload avatar to get the new image URL
+      setTimeout(async () => {
+        await this.loadCurrentAvatar();
+      }, 1000);
+      
       this.setState({ avatarUploading: false });
     } catch (err) {
-      this.setState({ avatarUploading: false, avatarError: err.message });
+      const errorMessage = err?.response?.data?.user_message 
+        || err?.response?.data?.developer_message 
+        || err.message 
+        || 'Upload failed';
+      this.setState({ avatarUploading: false, avatarError: errorMessage });
     }
   }
 
   handleAvatarRemove = async () => {
     this.setState({ avatarUploading: true, avatarError: null });
     try {
+      const { getAuthenticatedHttpClient } = await import('@edx/frontend-platform/auth');
       const username = this.props.formValues.username || this.context.authenticatedUser.username;
-      const resp = await fetch(`/api/user/v1/accounts/${username}/image`, {
-        method: 'DELETE',
-      });
-      if (!resp.ok) throw new Error(`Remove failed with status ${resp.status}`);
+      
+      await getAuthenticatedHttpClient().delete(
+        `${getConfig().LMS_BASE_URL}/api/user/v1/accounts/${username}/image`
+      );
+      
       this.props.fetchSettings();
       this.setState({ avatarPreviewUrl: null, avatarUploading: false });
     } catch (err) {
-      this.setState({ avatarUploading: false, avatarError: err.message });
+      const errorMessage = err?.response?.data?.user_message 
+        || err?.response?.data?.developer_message 
+        || err.message 
+        || 'Remove failed';
+      this.setState({ avatarUploading: false, avatarError: errorMessage });
     }
   }
 
@@ -252,23 +268,34 @@ class AccountSettingsPage extends React.Component {
 
   async loadCurrentAvatar() {
     try {
+      const { getAuthenticatedHttpClient } = await import('@edx/frontend-platform/auth');
+      const client = getAuthenticatedHttpClient();
       const username = this.props.formValues?.username || this.context.authenticatedUser.username;
-      const resp = await fetch(`/api/user/v1/accounts/${username}/`);
-      if (!resp.ok) return;
-      const data = await resp.json();
-      // Backend helper returns profile image URLs under profile_image when present
-      if (data && data.profile_image && data.profile_image.profile_image_medium) {
-        // Some templates use 'medium' key; fall back to 'medium' or 'profile_image_medium'
-        const url = data.profile_image.medium || data.profile_image.profile_image_medium || data.profile_image.profile_image || null;
-        if (url) this.setState({ avatarPreviewUrl: url });
+      
+      // Use the user_popup endpoint which we know works from the header
+      const apiUrl = `${getConfig().LMS_BASE_URL}/api/user/v1/user_popup/`;
+      const resp = await client.get(apiUrl);
+      
+      if (!resp || resp.status !== 200) {
+        return;
+      }
+      
+      const data = resp.data;
+      
+      // The user_popup endpoint returns profile_image_url directly as a string
+      if (data && data.profile_image_url) {
+        this.setState({ avatarPreviewUrl: data.profile_image_url });
       }
     } catch (err) {
-      // ignore
+      console.error('Failed to load current avatar:', err);
     }
   }
 
   componentDidUpdate(prevProps) {
     if (prevProps.loading && !prevProps.loaded && this.props.loaded) {
+      // Settings just finished loading, reload avatar
+      this.loadCurrentAvatar();
+      
       const locationHash = global.location.hash;
       // Check for the locationHash in the URL and then scroll to it if it is in the
       // NavLinks list
@@ -846,18 +873,20 @@ class AccountSettingsPage extends React.Component {
             </div>
             <div className="col-md-6">
               <div className="form-group">
-                <label htmlFor="position" className="form-label">Vị trí làm việc</label>
+                <label htmlFor="position" className="form-label">Lĩnh vực chuyên môn</label>
                 <select 
                   className="form-control" 
                   id="position"
-                  name="level_of_education"
-                  value={this.props.formValues.level_of_education || ''}
-                  onChange={(e) => this.handleEditableFieldChange('level_of_education', e.target.value)}
+                  name="job_title"
+                  value={this.props.formValues.job_title || ''}
+                  onChange={(e) => this.handleEditableFieldChange('job_title', e.target.value)}
                 >
-                  <option value="">Chọn vị trí làm việc</option>
-                  <option value="staff">Nhân viên văn phòng</option>
-                  <option value="manager">Quản lý</option>
-                  <option value="director">Giám đốc</option>
+                  <option value="">Chọn lĩnh vực chuyên môn</option>
+                  {this.props.extraFieldOptions.job_title && this.props.extraFieldOptions.job_title.map((option) => (
+                    <option key={option.toLowerCase()} value={option.toLowerCase()}>
+                      {option}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -1161,6 +1190,7 @@ AccountSettingsPage.propTypes = {
     country: PropTypes.string,
     level_of_education: PropTypes.string,
     gender: PropTypes.string,
+    job_title: PropTypes.string,
     extended_profile: PropTypes.arrayOf(PropTypes.shape({
       field_name: PropTypes.string,
       field_value: PropTypes.string,
@@ -1248,6 +1278,7 @@ AccountSettingsPage.propTypes = {
       label: PropTypes.string.isRequired,
     }),
   ),
+  extraFieldOptions: PropTypes.shape({}),
 };
 
 AccountSettingsPage.defaultProps = {
@@ -1275,6 +1306,7 @@ AccountSettingsPage.defaultProps = {
   mostRecentVerifiedName: {},
   verifiedNameHistory: [],
   countriesCodesList: [],
+  extraFieldOptions: {},
 };
 
 export default withLocation(withNavigate(connect(accountSettingsPageSelector, {

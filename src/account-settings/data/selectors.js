@@ -93,6 +93,11 @@ const countriesSelector = createSelector(
   accountSettings => accountSettings.countriesCodesList,
 );
 
+const extraFieldOptionsSelector = createSelector(
+  accountSettingsSelector,
+  accountSettings => accountSettings.extraFieldOptions || {},
+);
+
 const editableFieldErrorSelector = createSelector(
   editableFieldNameSelector,
   accountSettingsSelector,
@@ -243,6 +248,7 @@ export const accountSettingsPageSelector = createSelector(
   mostRecentVerifiedNameSelector,
   sortedVerifiedNameHistorySelector,
   countriesSelector,
+  extraFieldOptionsSelector,
   (
     accountSettings,
     siteLanguageOptions,
@@ -261,6 +267,7 @@ export const accountSettingsPageSelector = createSelector(
     mostRecentVerifiedName,
     verifiedNameHistory,
     countriesCodesList,
+    extraFieldOptions,
   ) => ({
     siteLanguageOptions,
     siteLanguage,
@@ -282,6 +289,7 @@ export const accountSettingsPageSelector = createSelector(
     mostRecentVerifiedName,
     verifiedNameHistory,
     countriesCodesList,
+    extraFieldOptions,
   }),
 );
 

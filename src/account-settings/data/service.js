@@ -207,6 +207,25 @@ export async function getCountryList() {
 }
 
 /**
+ * Get EXTRA_FIELD_OPTIONS from MFE config API
+ * This contains dropdown options for configurable fields like job_title
+ */
+export async function getExtraFieldOptions() {
+  const url = `${getConfig().LMS_BASE_URL}/api/mfe_config/v1?mfe=account`;
+
+  try {
+    const { data } = await getAuthenticatedHttpClient().get(url);
+    console.log('MFE Config API Response:', data);
+    console.log('EXTRA_FIELD_OPTIONS:', data.EXTRA_FIELD_OPTIONS);
+    return data.EXTRA_FIELD_OPTIONS || {};
+  } catch (e) {
+    console.error('Error fetching EXTRA_FIELD_OPTIONS:', e);
+    logError(e);
+    return {};
+  }
+}
+
+/**
  * A single function to GET everything considered a setting. Currently encapsulates Account, Preferences, and
  * ThirdPartyAuth.
  */
@@ -218,6 +237,7 @@ export async function getSettings(username, userRoles) {
     profileDataManager,
     timeZones,
     countries,
+    extraFieldOptions,
   ] = await Promise.all([
     getAccount(username),
     getPreferences(username),
@@ -225,6 +245,7 @@ export async function getSettings(username, userRoles) {
     getProfileDataManager(username, userRoles),
     getTimeZones(),
     getCountryList(),
+    getExtraFieldOptions(),
   ]);
 
   return {
@@ -234,6 +255,7 @@ export async function getSettings(username, userRoles) {
     profileDataManager,
     timeZones,
     countries,
+    extraFieldOptions,
   };
 }
 

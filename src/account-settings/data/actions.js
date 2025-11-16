@@ -28,6 +28,7 @@ export const fetchSettingsSuccess = ({
   timeZones,
   verifiedNameHistory,
   countriesCodesList,
+  extraFieldOptions,
 }) => ({
   type: FETCH_SETTINGS.SUCCESS,
   payload: {
@@ -37,6 +38,7 @@ export const fetchSettingsSuccess = ({
     timeZones,
     verifiedNameHistory,
     countriesCodesList,
+    extraFieldOptions,
   },
 });
 
