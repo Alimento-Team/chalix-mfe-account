@@ -48,7 +48,10 @@ subscribe(APP_READY, () => {
         break;
       case 'personalize':
         // Cá nhân hóa - learner dashboard with personalized tab
-        window.location.href = `${learnerDashboardUrl}?tab=personalized`;
+        // Build a safe URL that always includes a single trailing slash before query
+        window.location.href = learnerDashboardUrl.endsWith('/')
+          ? `${learnerDashboardUrl}?tab=personalized`
+          : `${learnerDashboardUrl}/?tab=personalized`;
         break;
       default:
         break;
