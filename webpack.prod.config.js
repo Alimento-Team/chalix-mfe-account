@@ -16,7 +16,13 @@ config.resolve.modules = [
 
 // Fix for react-focus-on ES module resolution issue in webpack 5
 // https://github.com/theKashey/react-focus-on/issues/174
-config.resolve.fullySpecified = false;
+config.module.rules.push({
+  test: /\.m?js$/,
+  resolve: {
+    fullySpecified: false,
+  },
+  include: /node_modules\/react-focus-on/,
+});
 
 // Add an explicit rule to transpile the Chalix header package source in node_modules
 // This is more robust than relying on modifying the existing babel-loader exclude.
