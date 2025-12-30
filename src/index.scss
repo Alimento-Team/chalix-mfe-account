@@ -257,3 +257,56 @@ a.btn {
     margin-bottom: 32px !important;
   }
 }
+
+/* Chalix Footer Styling - Match Studio Footer */
+footer {
+  background: #3563c1 !important;
+  color: #ffffff !important;
+  padding: 40px 0 !important;
+  margin-top: auto !important;
+
+  .container {
+    text-align: center !important;
+  }
+
+  p,
+  a,
+  span,
+  div {
+    color: #ffffff !important;
+    font-family: 'Roboto', sans-serif !important;
+    font-weight: 400 !important;
+    font-size: 16px !important;
+    line-height: 20px !important;
+    letter-spacing: 0.5px !important;
+    text-align: center !important;
+  }
+
+  a:hover {
+    color: rgba(255, 255, 255, 0.8) !important;
+  }
+
+  /* Replace footer text content with ITG ACST */
+  p:not(:empty)::after {
+    content: "ITG ACST" !important;
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  p:not(:empty) {
+    font-size: 0 !important;
+  }
+
+  p:not(:empty) * {
+    display: none !important;
+  }
+}
+
+/* Override default footer styles */
+.footer {
+  background: #3563c1 !important;
+}
+
+.site-footer {
+  background: #3563c1 !important;
+}
