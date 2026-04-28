@@ -16,6 +16,8 @@ class Camera extends React.Component {
   constructor(props, context) {
     super(props, context);
     this.cameraPhoto = null;
+    this.nativeStream = null;
+    this.isUnmounted = false;
     this.videoRef = React.createRef();
     this.canvasRef = React.createRef();
     this.setDetection = this.setDetection.bind(this);
@@ -30,15 +32,144 @@ class Camera extends React.Component {
   }
 
   componentDidMount() {
+    this.isUnmounted = false;
     this.cameraPhoto = new CameraPhoto(this.videoRef.current);
-    this.cameraPhoto.startCamera(
-      this.props.isPortrait ? FACING_MODES.USER : FACING_MODES.ENVIRONMENT,
-      { width: 640, height: 480 },
-    );
+    this.initializeCamera();
   }
 
   async componentWillUnmount() {
-    this.cameraPhoto.stopCamera();
+    this.isUnmounted = true;
+    await this.stopAllStreams();
+  }
+
+  async initializeCamera() {
+    const preferredMode = this.props.isPortrait ? FACING_MODES.USER : FACING_MODES.ENVIRONMENT;
+    const fallbackMode = preferredMode === FACING_MODES.USER ? FACING_MODES.ENVIRONMENT : FACING_MODES.USER;
+
+    const preferredStarted = await this.startCameraWithMode(preferredMode);
+    if (preferredStarted) {
+      return;
+    }
+
+    const fallbackStarted = await this.startCameraWithMode(fallbackMode);
+    if (fallbackStarted) {
+      return;
+    }
+
+    await this.startNativeCamera(preferredMode);
+  }
+
+  async startCameraWithMode(mode) {
+    if (!this.cameraPhoto || typeof this.cameraPhoto.startCamera !== 'function') {
+      return false;
+    }
+
+    try {
+      await Promise.resolve(this.cameraPhoto.startCamera(mode, { width: 640, height: 480 }));
+      await this.forceVideoPlayback();
+      return await this.waitForVideoFrame();
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async startNativeCamera(mode) {
+    const mediaDevices = navigator?.mediaDevices;
+    if (!mediaDevices || typeof mediaDevices.getUserMedia !== 'function') {
+      return false;
+    }
+
+    try {
+      this.nativeStream = await mediaDevices.getUserMedia({
+        video: { facingMode: mode === FACING_MODES.ENVIRONMENT ? 'environment' : 'user' },
+      });
+      const video = this.videoRef.current;
+      if (!video) {
+        return false;
+      }
+      video.srcObject = this.nativeStream;
+      await this.forceVideoPlayback();
+      return await this.waitForVideoFrame();
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async forceVideoPlayback() {
+    const video = this.videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    video.muted = true;
+    video.setAttribute('muted', '');
+    video.setAttribute('playsinline', '');
+    video.setAttribute('autoplay', '');
+
+    try {
+      await Promise.resolve(video.play());
+    } catch (error) {
+      // Best effort: some browsers may defer playback until metadata is ready.
+    }
+  }
+
+  waitForVideoFrame(timeoutMs = 3000) {
+    const video = this.videoRef.current;
+    if (!video) {
+      return Promise.resolve(false);
+    }
+
+    const hasFrame = () => Boolean(video.videoWidth && video.videoHeight && video.readyState >= 2);
+    if (hasFrame()) {
+      if (!this.isUnmounted) {
+        this.setState({ videoHasLoaded: true });
+      }
+      return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const settle = (result) => {
+        if (settled) return;
+        settled = true;
+        video.removeEventListener('loadeddata', onReady);
+        video.removeEventListener('canplay', onReady);
+        video.removeEventListener('loadedmetadata', onReady);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        resolve(result);
+      };
+
+      const onReady = () => {
+        if (hasFrame()) {
+          if (!this.isUnmounted) {
+            this.setState({ videoHasLoaded: true });
+          }
+          settle(true);
+        }
+      };
+
+      const timeoutId = setTimeout(() => settle(false), timeoutMs);
+      video.addEventListener('loadeddata', onReady);
+      video.addEventListener('canplay', onReady);
+      video.addEventListener('loadedmetadata', onReady);
+    });
+  }
+
+  async stopAllStreams() {
+    if (this.cameraPhoto && typeof this.cameraPhoto.stopCamera === 'function') {
+      try {
+        await Promise.resolve(this.cameraPhoto.stopCamera());
+      } catch (error) {
+        // Ignore stop failures during unmount.
+      }
+    }
+
+    if (this.nativeStream) {
+      this.nativeStream.getTracks().forEach(track => track.stop());
+      this.nativeStream = null;
+    }
   }
 
   setDetection() {
@@ -55,7 +186,7 @@ class Camera extends React.Component {
   }
 
   setVideoHasLoaded() {
-    this.setState({ videoHasLoaded: 'true' });
+    this.setState({ videoHasLoaded: true });
   }
 
   getGridPosition(coordinates) {
@@ -259,7 +390,29 @@ class Camera extends React.Component {
     };
 
     this.playShutterClick();
-    const dataUri = this.cameraPhoto.getDataUri(config);
+    let dataUri = '';
+    if (this.cameraPhoto && typeof this.cameraPhoto.getDataUri === 'function') {
+      dataUri = this.cameraPhoto.getDataUri(config) || '';
+    }
+
+    if (!dataUri) {
+      const video = this.videoRef.current;
+      const canvas = document.createElement('canvas');
+      if (video && video.videoWidth && video.videoHeight) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext('2d');
+        if (context) {
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          dataUri = canvas.toDataURL('image/png');
+        }
+      }
+    }
+
+    if (!dataUri) {
+      return;
+    }
+
     this.setState({ dataUri });
     this.props.onImageCapture(dataUri);
   }
