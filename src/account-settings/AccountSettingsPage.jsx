@@ -77,6 +77,10 @@ class AccountSettingsPage extends React.Component {
       avatarPreviewUrl: null,
       avatarUploading: false,
       avatarError: null,
+      professionalFieldDraft: '',
+      professionalFieldSubmitting: false,
+      professionalFieldError: null,
+      professionalFieldSuccess: null,
       // Cropper state
       showCropper: false,
       cropImageSrc: null,
@@ -384,6 +388,53 @@ class AccountSettingsPage extends React.Component {
 
   handleEditableFieldChange = (name, value) => {
     this.props.updateDraft(name, value);
+  };
+
+  canManageProfessionalFields = () => Boolean(this.props.extraFieldOptions?.can_manage_professional_fields);
+
+  handleProfessionalFieldDraftChange = (event) => {
+    this.setState({
+      professionalFieldDraft: event.target.value,
+      professionalFieldError: null,
+      professionalFieldSuccess: null,
+    });
+  };
+
+  addProfessionalField = async () => {
+    const fieldName = (this.state.professionalFieldDraft || '').trim();
+    if (!fieldName) {
+      this.setState({ professionalFieldError: 'Vui lòng nhập tên lĩnh vực chuyên môn.' });
+      return;
+    }
+
+    this.setState({
+      professionalFieldSubmitting: true,
+      professionalFieldError: null,
+      professionalFieldSuccess: null,
+    });
+
+    try {
+      const { getAuthenticatedHttpClient } = await import('@edx/frontend-platform/auth');
+      const requestUrl = `${getConfig().LMS_BASE_URL}/api/chalix/user-menu/professional-fields/`;
+      await getAuthenticatedHttpClient().post(requestUrl, {
+        name: fieldName,
+      });
+
+      this.setState({
+        professionalFieldDraft: '',
+        professionalFieldSubmitting: false,
+        professionalFieldSuccess: 'Đã thêm lĩnh vực chuyên môn mới.',
+      });
+
+      this.props.fetchSettings();
+      this.handleEditableFieldChange('job_title', fieldName);
+    } catch (error) {
+      const apiError = error?.response?.data?.error;
+      this.setState({
+        professionalFieldSubmitting: false,
+        professionalFieldError: apiError || 'Không thể thêm lĩnh vực chuyên môn. Vui lòng thử lại.',
+      });
+    }
   };
 
   handleSubmit = (formId, values) => {
@@ -882,15 +933,126 @@ class AccountSettingsPage extends React.Component {
                   onChange={(e) => this.handleEditableFieldChange('job_title', e.target.value)}
                 >
                   <option value="">Chọn lĩnh vực chuyên môn</option>
-                  {(() => {
-                    console.log('[Professional Fields Debug] extraFieldOptions:', this.props.extraFieldOptions);
-                    console.log('[Professional Fields Debug] job_title:', this.props.extraFieldOptions?.job_title);
-                    return this.props.extraFieldOptions?.job_title?.map((option) => (
-                      <option key={option.toLowerCase()} value={option.toLowerCase()}>
-                        {option}
-                      </option>
-                    ));
-                  })()}
+                  {this.props.extraFieldOptions?.job_title?.map((option) => (
+                    <option key={option.toLowerCase()} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                {this.canManageProfessionalFields() && (
+                  <div className="mt-2">
+                    <div className="d-flex align-items-center">
+                      <input
+                        type="text"
+                        className="form-control mr-2"
+                        value={this.state.professionalFieldDraft}
+                        onChange={this.handleProfessionalFieldDraftChange}
+                        placeholder="Thêm lĩnh vực chuyên môn mới"
+                        maxLength={200}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-outline-primary"
+                        onClick={this.addProfessionalField}
+                        disabled={this.state.professionalFieldSubmitting}
+                      >
+                        {this.state.professionalFieldSubmitting ? 'Đang thêm...' : 'Thêm'}
+                      </button>
+                    </div>
+                    {this.state.professionalFieldError && (
+                      <small className="text-danger d-block mt-1">{this.state.professionalFieldError}</small>
+                    )}
+                    {this.state.professionalFieldSuccess && (
+                      <small className="text-success d-block mt-1">{this.state.professionalFieldSuccess}</small>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="row">
+            <div className="col-md-6">
+              <div className="form-group">
+                <label htmlFor="birth-date" className="form-label">Ngày sinh</label>
+                <input 
+                  type="date" 
+                  className="form-control" 
+                  id="birth-date" 
+                  name="birth_date"
+                  value={this.props.formValues.birth_date || ''}
+                  onChange={(e) => this.handleEditableFieldChange('birth_date', e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="col-md-6">
+              <div className="form-group">
+                <label htmlFor="gender" className="form-label">Giới tính</label>
+                <select 
+                  className="form-control" 
+                  id="gender"
+                  name="gender"
+                  value={this.props.formValues.gender || ''}
+                  onChange={(e) => this.handleEditableFieldChange('gender', e.target.value)}
+                >
+                  <option value="">Chọn giới tính</option>
+                  <option value="m">Nam</option>
+                  <option value="f">Nữ</option>
+                  <option value="o">Khác</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="row">
+            <div className="col-md-6">
+              <div className="form-group">
+                <label htmlFor="province" className="form-label">Tên tỉnh</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  id="province" 
+                  name="province"
+                  value={this.props.formValues.province || ''}
+                  onChange={(e) => this.handleEditableFieldChange('province', e.target.value)}
+                  placeholder="Hà Nội"
+                />
+              </div>
+            </div>
+            <div className="col-md-6">
+              <div className="form-group">
+                <label htmlFor="job-position" className="form-label">Vị trí việc làm</label>
+                <select 
+                  className="form-control" 
+                  id="job-position"
+                  name="job_position"
+                  value={this.props.formValues.job_position || ''}
+                  onChange={(e) => this.handleEditableFieldChange('job_position', e.target.value)}
+                >
+                  <option value="">Chọn vị trí việc làm</option>
+                  <option value="leader">Lãnh đạo</option>
+                  <option value="senior_expert">Chuyên viên chính</option>
+                  <option value="expert">Chuyên viên</option>
+                  <option value="staff">Nhân viên</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="row">
+            <div className="col-md-6">
+              <div className="form-group">
+                <label htmlFor="civil-servant" className="form-label">Ngạch</label>
+                <select 
+                  className="form-control" 
+                  id="civil-servant"
+                  name="civil_servant_type"
+                  value={this.props.formValues.civil_servant_type || ''}
+                  onChange={(e) => this.handleEditableFieldChange('civil_servant_type', e.target.value)}
+                >
+                  <option value="">Chọn ngạch</option>
+                  <option value="civil_servant">Công chức</option>
+                  <option value="official">Viên chức</option>
                 </select>
               </div>
             </div>
@@ -929,8 +1091,11 @@ class AccountSettingsPage extends React.Component {
             <button 
               className="btn btn-primary btn-save-changes"
               onClick={() => {
-                // Save all fields
-                const fieldsToSave = ['email', 'name', 'phone_number', 'level_of_education'];
+                // Save all fields including new profile enhancement fields
+                const fieldsToSave = [
+                  'email', 'name', 'phone_number', 'level_of_education', 'job_title', 
+                  'birth_date', 'gender', 'province', 'job_position', 'civil_servant_type'
+                ];
                 fieldsToSave.forEach(field => {
                   if (this.props.drafts[field] !== undefined) {
                     this.handleSubmit(field, this.props.drafts[field]);
@@ -1194,7 +1359,11 @@ AccountSettingsPage.propTypes = {
     country: PropTypes.string,
     level_of_education: PropTypes.string,
     gender: PropTypes.string,
+    birth_date: PropTypes.string,
     job_title: PropTypes.string,
+    province: PropTypes.string,
+    job_position: PropTypes.string,
+    civil_servant_type: PropTypes.string,
     extended_profile: PropTypes.arrayOf(PropTypes.shape({
       field_name: PropTypes.string,
       field_value: PropTypes.string,
@@ -1282,7 +1451,10 @@ AccountSettingsPage.propTypes = {
       label: PropTypes.string.isRequired,
     }),
   ),
-  extraFieldOptions: PropTypes.shape({}),
+  extraFieldOptions: PropTypes.shape({
+    job_title: PropTypes.arrayOf(PropTypes.string),
+    can_manage_professional_fields: PropTypes.bool,
+  }),
 };
 
 AccountSettingsPage.defaultProps = {
