@@ -1,4 +1,4 @@
-@use "@openedx/paragon/styles/css/core/custom-media-breakpoints" as paragonCustomMediaBreakpoints;
+@import "@openedx/paragon/styles/css/core/custom-media-breakpoints.css";
 
 $fa-font-path: "~font-awesome/fonts";
 
@@ -247,7 +247,20 @@ a.btn {
   }
 }
 
-@media screen and (max-width: 425px) {
+@media (--pgn-size-breakpoint-max-width-md) {
+  .notification-preferences-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .notification-preferences {
+    .email-channel {
+      width: auto !important;
+    }
+  }
+}
+
+@media (--pgn-size-breakpoint-max-width-xs) {
   .column-padding {
     padding-left: 16px;
     padding-right: 16px;

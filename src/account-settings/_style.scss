@@ -20,6 +20,9 @@
   }
 
   .jump-nav {
+    .jump-nav-mobile {
+      display: none;
+    }
 
     li {
       margin-bottom: .5rem;
@@ -208,5 +211,30 @@
     /* Real browsers */
     filter: alpha(opacity=60);
     /* MSIE */
+  }
+
+  @media (--pgn-size-breakpoint-max-width-md) {
+    .jump-nav {
+      .jump-nav-list {
+        display: none;
+      }
+
+      .jump-nav-mobile {
+        display: block;
+      }
+    }
+
+    .account-main-content {
+      .form-group {
+
+        .form-control,
+        select.form-control,
+        input.form-control,
+        textarea.form-control {
+          width: 100%;
+          max-width: 100%;
+        }
+      }
+    }
   }
 }

@@ -43,7 +43,9 @@ const NotificationSettings = () => {
           </Hyperlink>
         </div>
         <NotificationCoursesDropdown />
-        <NotificationPreferences courseId={courseId} />
+        <div className="notification-preferences-table-wrapper">
+          <NotificationPreferences courseId={courseId} />
+        </div>
         <div className="border border-light-700 my-6" />
       </Container>
     )
