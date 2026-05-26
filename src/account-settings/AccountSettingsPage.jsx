@@ -924,6 +924,42 @@ class AccountSettingsPage extends React.Component {
             </div>
             <div className="col-md-6">
               <div className="form-group">
+                <label htmlFor="cccd" className="form-label">Căn cước công dân</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  id="cccd" 
+                  name="cccd"
+                  value={this.props.formValues.cccd || ''}
+                  onChange={(e) => this.handleEditableFieldChange('cccd', e.target.value)}
+                  placeholder="Số CCCD"
+                  maxLength={20}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="row">
+            <div className="col-md-12">
+              <div className="form-group">
+                <label htmlFor="mailing-address" className="form-label">Địa chỉ</label>
+                <textarea 
+                  className="form-control" 
+                  id="mailing-address"
+                  name="mailing_address"
+                  rows="3"
+                  value={this.props.formValues.mailing_address || ''}
+                  onChange={(e) => this.handleEditableFieldChange('mailing_address', e.target.value)}
+                  placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố"
+                >
+                </textarea>
+              </div>
+            </div>
+          </div>
+
+          <div className="row">
+            <div className="col-md-6">
+              <div className="form-group">
                 <label htmlFor="position" className="form-label">Lĩnh vực chuyên môn</label>
                 <select 
                   className="form-control" 
@@ -1093,7 +1129,7 @@ class AccountSettingsPage extends React.Component {
               onClick={() => {
                 // Save all fields including new profile enhancement fields
                 const fieldsToSave = [
-                  'email', 'name', 'phone_number', 'level_of_education', 'job_title', 
+                  'email', 'name', 'phone_number', 'cccd', 'mailing_address', 'level_of_education', 'job_title', 
                   'birth_date', 'gender', 'province', 'job_position', 'civil_servant_type'
                 ];
                 fieldsToSave.forEach(field => {
@@ -1360,6 +1396,8 @@ AccountSettingsPage.propTypes = {
     level_of_education: PropTypes.string,
     gender: PropTypes.string,
     birth_date: PropTypes.string,
+    cccd: PropTypes.string,
+    mailing_address: PropTypes.string,
     job_title: PropTypes.string,
     province: PropTypes.string,
     job_position: PropTypes.string,
