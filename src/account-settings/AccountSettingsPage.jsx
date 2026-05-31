@@ -1127,16 +1127,32 @@ class AccountSettingsPage extends React.Component {
             <button 
               className="btn btn-primary btn-save-changes"
               onClick={() => {
-                // Save all fields including new profile enhancement fields
+                // Save changed fields in one coordinated flow to avoid concurrent PATCH races.
                 const fieldsToSave = [
-                  'email', 'name', 'phone_number', 'cccd', 'mailing_address', 'level_of_education', 'job_title', 
-                  'birth_date', 'gender', 'province', 'job_position', 'civil_servant_type'
+                  'email',
+                  'name',
+                  'phone_number',
+                  'cccd',
+                  'mailing_address',
+                  'level_of_education',
+                  'job_title',
+                  'birth_date',
+                  'gender',
+                  'province',
+                  'job_position',
+                  'civil_servant_type',
                 ];
-                fieldsToSave.forEach(field => {
-                  if (this.props.drafts[field] !== undefined) {
-                    this.handleSubmit(field, this.props.drafts[field]);
-                  }
-                });
+
+                const settingsArray = fieldsToSave
+                  .filter((field) => this.props.drafts[field] !== undefined)
+                  .map((field) => ({
+                    formId: field,
+                    commitValues: this.props.drafts[field],
+                  }));
+
+                if (settingsArray.length > 0) {
+                  this.props.saveMultipleSettings(settingsArray);
+                }
               }}
             >
               Lưu thay đổi
