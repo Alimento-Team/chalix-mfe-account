@@ -81,6 +81,7 @@ class AccountSettingsPage extends React.Component {
       professionalFieldSubmitting: false,
       professionalFieldError: null,
       professionalFieldSuccess: null,
+      showSaveSuccessMessage: false,
       // Cropper state
       showCropper: false,
       cropImageSrc: null,
@@ -309,6 +310,26 @@ class AccountSettingsPage extends React.Component {
       if (Object.keys(this.navLinkRefs).includes(locationHash) && this.navLinkRefs[locationHash].current) {
         window.scrollTo(0, this.navLinkRefs[locationHash].current.offsetTop);
       }
+    }
+
+    if (prevProps.saveState === 'pending' && this.props.saveState === 'complete') {
+      if (this._saveSuccessTimeout) {
+        clearTimeout(this._saveSuccessTimeout);
+      }
+      this.setState({ showSaveSuccessMessage: true });
+      this._saveSuccessTimeout = setTimeout(() => {
+        this.setState({ showSaveSuccessMessage: false });
+      }, 2500);
+    }
+
+    if (prevProps.saveState === 'pending' && this.props.saveState === 'error') {
+      this.setState({ showSaveSuccessMessage: false });
+    }
+  }
+
+  componentWillUnmount() {
+    if (this._saveSuccessTimeout) {
+      clearTimeout(this._saveSuccessTimeout);
     }
   }
 
@@ -1135,7 +1156,6 @@ class AccountSettingsPage extends React.Component {
                   'cccd',
                   'mailing_address',
                   'level_of_education',
-                  'job_title',
                   'birth_date',
                   'gender',
                   'province',
@@ -1150,6 +1170,17 @@ class AccountSettingsPage extends React.Component {
                     commitValues: this.props.drafts[field],
                   }));
 
+                const jobTitleDraft = this.props.drafts.job_title;
+                if (jobTitleDraft !== undefined) {
+                  settingsArray.unshift({
+                    formId: 'extended_profile',
+                    commitValues: [{
+                      field_name: 'job_title',
+                      field_value: jobTitleDraft,
+                    }],
+                  });
+                }
+
                 if (settingsArray.length > 0) {
                   this.props.saveMultipleSettings(settingsArray);
                 }
@@ -1157,6 +1188,10 @@ class AccountSettingsPage extends React.Component {
             >
               Lưu thay đổi
             </button>
+
+            {this.state.showSaveSuccessMessage && (
+              <div className="mt-2 text-success font-weight-bold">Đã lưu thông tin</div>
+            )}
           </div>
         </div>
 
@@ -1399,6 +1434,7 @@ AccountSettingsPage.propTypes = {
   loading: PropTypes.bool,
   loaded: PropTypes.bool,
   loadingError: PropTypes.string,
+  saveState: PropTypes.string,
 
   // Form data
   formValues: PropTypes.shape({
@@ -1515,6 +1551,7 @@ AccountSettingsPage.defaultProps = {
   loading: false,
   loaded: false,
   loadingError: null,
+  saveState: null,
   committedValues: {
     useVerifiedNameForCerts: false,
     verified_name: null,

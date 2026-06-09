@@ -249,6 +249,7 @@ export const accountSettingsPageSelector = createSelector(
   sortedVerifiedNameHistorySelector,
   countriesSelector,
   extraFieldOptionsSelector,
+  saveStateSelector,
   (
     accountSettings,
     siteLanguageOptions,
@@ -268,6 +269,7 @@ export const accountSettingsPageSelector = createSelector(
     verifiedNameHistory,
     countriesCodesList,
     extraFieldOptions,
+    saveState,
   ) => ({
     siteLanguageOptions,
     siteLanguage,
@@ -290,6 +292,7 @@ export const accountSettingsPageSelector = createSelector(
     verifiedNameHistory,
     countriesCodesList,
     extraFieldOptions,
+    saveState,
   }),
 );
 
