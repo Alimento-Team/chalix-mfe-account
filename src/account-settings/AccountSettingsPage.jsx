@@ -852,6 +852,8 @@ class AccountSettingsPage extends React.Component {
     const { verifiedName } = this.props;
 
     const hasWorkExperience = !!this.props.formValues?.extended_profile?.find(field => field.field_name === 'work_experience');
+    const profileJobTitle = this.props.formValues?.extended_profile?.find(field => field.field_name === 'job_title')?.field_value || '';
+    const selectedJobTitle = this.props.drafts?.job_title !== undefined ? this.props.drafts.job_title : profileJobTitle;
 
     const timeZoneOptions = this.getLocalizedTimeZoneOptions(
       this.props.timeZoneOptions,
@@ -986,7 +988,7 @@ class AccountSettingsPage extends React.Component {
                   className="form-control" 
                   id="position"
                   name="job_title"
-                  value={this.props.formValues.job_title || ''}
+                  value={selectedJobTitle}
                   onChange={(e) => this.handleEditableFieldChange('job_title', e.target.value)}
                 >
                   <option value="">Chọn lĩnh vực chuyên môn</option>
