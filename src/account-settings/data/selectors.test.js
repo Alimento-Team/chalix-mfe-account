@@ -69,4 +69,34 @@ describe('profileDataManagerSelector', () => {
 
     expect(result).toEqual(expected);
   });
+
+  it('should merge multiple drafts into extended_profile values', () => {
+    const state = {
+      accountSettings: {
+        values: {
+          extended_profile: [
+            { field_name: 'test_field', field_value: '5' },
+            { field_name: 'job_title', field_value: 'Old title' },
+          ],
+        },
+        drafts: {
+          test_field: '6',
+          job_title: 'New title',
+        },
+        verifiedNameHistory: 'test',
+        confirmationValues: {},
+      },
+    };
+
+    const result = formValuesSelector(state);
+
+    expect(result).toEqual({
+      verified_name: '',
+      useVerifiedNameForCerts: false,
+      extended_profile: [
+        { field_name: 'test_field', field_value: '6' },
+        { field_name: 'job_title', field_value: 'New title' },
+      ],
+    });
+  });
 });

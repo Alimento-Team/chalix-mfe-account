@@ -176,16 +176,13 @@ export const formValuesSelector = createSelector(
         formValues[name] = chooseFormValue(drafts[name], value);
       } else if (typeof value === 'object' && name === 'extended_profile' && value !== null) {
         const extendedProfile = value.slice();
-        const draftsKeys = Object.keys(drafts);
-
-        if (draftsKeys.length !== 0) {
-          const draftFieldName = draftsKeys[0];
+        Object.entries(drafts).forEach(([draftFieldName, draftFieldValue]) => {
           const index = extendedProfile.findIndex((profile) => profile.field_name === draftFieldName);
 
           if (index !== -1) {
-            extendedProfile[index] = { field_name: draftFieldName, field_value: drafts[draftFieldName] };
+            extendedProfile[index] = { field_name: draftFieldName, field_value: draftFieldValue };
           }
-        }
+        });
 
         formValues.extended_profile = [...extendedProfile];
       } else {

@@ -99,6 +99,62 @@ class AccountSettingsPage extends React.Component {
     this._dragState = { dragging: false, startX: 0, startY: 0, startOffsetX: 0, startOffsetY: 0 };
   }
 
+  getExtendedProfileEntries = () => {
+    const { formValues } = this.props;
+    return Array.isArray(formValues?.extended_profile) ? formValues.extended_profile : [];
+  };
+
+  isExtendedProfileField = (fieldName) => (
+    fieldName === 'job_title'
+    || this.getExtendedProfileEntries().some((field) => field.field_name === fieldName)
+  );
+
+  buildExtendedProfileCommit = (draftValues) => {
+    const mergedEntries = new Map(
+      this.getExtendedProfileEntries().map((field) => [field.field_name, { ...field }]),
+    );
+
+    Object.entries(draftValues).forEach(([fieldName, fieldValue]) => {
+      mergedEntries.set(fieldName, {
+        field_name: fieldName,
+        field_value: fieldValue,
+      });
+    });
+
+    return Array.from(mergedEntries.values());
+  };
+
+  buildSettingsArrayFromDrafts = () => {
+    const excludedFields = new Set(['password', 'confirm_password']);
+    const extendedProfileDrafts = {};
+    const settingsArray = [];
+
+    Object.entries(this.props.drafts || {}).forEach(([fieldName, fieldValue]) => {
+      if (excludedFields.has(fieldName)) {
+        return;
+      }
+
+      if (this.isExtendedProfileField(fieldName)) {
+        extendedProfileDrafts[fieldName] = fieldValue;
+        return;
+      }
+
+      settingsArray.push({
+        formId: fieldName,
+        commitValues: fieldValue,
+      });
+    });
+
+    if (Object.keys(extendedProfileDrafts).length > 0) {
+      settingsArray.unshift({
+        formId: 'extended_profile',
+        commitValues: this.buildExtendedProfileCommit(extendedProfileDrafts),
+      });
+    }
+
+    return settingsArray;
+  };
+
   handleAvatarSelected = (file) => {
     if (!file) return;
     const reader = new FileReader();
@@ -463,16 +519,10 @@ class AccountSettingsPage extends React.Component {
       return;
     }
 
-    const { formValues } = this.props;
-    let extendedProfileObject = {};
+    const extendedProfileObject = this.isExtendedProfileField(formId)
+      ? { extended_profile: this.buildExtendedProfileCommit({ [formId]: values }) }
+      : {};
 
-    if ('extended_profile' in formValues && formValues.extended_profile.some((field) => field.field_name === formId)) {
-      extendedProfileObject = {
-        extended_profile: formValues.extended_profile.map(field => (field.field_name === formId
-          ? { ...field, field_value: values }
-          : field)),
-      };
-    }
     this.props.saveSettings(formId, values, extendedProfileObject);
   };
 
@@ -1150,38 +1200,7 @@ class AccountSettingsPage extends React.Component {
             <button 
               className="btn btn-primary btn-save-changes"
               onClick={() => {
-                // Save changed fields in one coordinated flow to avoid concurrent PATCH races.
-                const fieldsToSave = [
-                  'email',
-                  'name',
-                  'phone_number',
-                  'cccd',
-                  'mailing_address',
-                  'level_of_education',
-                  'birth_date',
-                  'gender',
-                  'province',
-                  'job_position',
-                  'civil_servant_type',
-                ];
-
-                const settingsArray = fieldsToSave
-                  .filter((field) => this.props.drafts[field] !== undefined)
-                  .map((field) => ({
-                    formId: field,
-                    commitValues: this.props.drafts[field],
-                  }));
-
-                const jobTitleDraft = this.props.drafts.job_title;
-                if (jobTitleDraft !== undefined) {
-                  settingsArray.unshift({
-                    formId: 'extended_profile',
-                    commitValues: [{
-                      field_name: 'job_title',
-                      field_value: jobTitleDraft,
-                    }],
-                  });
-                }
+                const settingsArray = this.buildSettingsArrayFromDrafts();
 
                 if (settingsArray.length > 0) {
                   this.props.saveMultipleSettings(settingsArray);
