@@ -65,6 +65,7 @@ describe('profileDataManagerSelector', () => {
       extended_profile: [ // Draft value should override the committed value
         { field_name: 'test_field', field_value: '6' }, // Value from the committed values
       ],
+      test_field: '6',
     };
 
     expect(result).toEqual(expected);
@@ -97,6 +98,49 @@ describe('profileDataManagerSelector', () => {
         { field_name: 'test_field', field_value: '6' },
         { field_name: 'job_title', field_value: 'New title' },
       ],
+      test_field: '6',
+      job_title: 'New title',
     });
+  });
+
+  it('should expose extended_profile fields as top-level form values', () => {
+    const state = {
+      accountSettings: {
+        values: {
+          extended_profile: [
+            { field_name: 'cccd', field_value: '0123456789' },
+            { field_name: 'province', field_value: 'Ha Noi' },
+          ],
+        },
+        drafts: {},
+        verifiedNameHistory: 'test',
+        confirmationValues: {},
+      },
+    };
+
+    const result = formValuesSelector(state);
+
+    expect(result.cccd).toEqual('0123456789');
+    expect(result.province).toEqual('Ha Noi');
+  });
+
+  it('should add draft-only custom fields into extended_profile and top-level values', () => {
+    const state = {
+      accountSettings: {
+        values: {
+          extended_profile: [],
+        },
+        drafts: {
+          cccd: '0999888777',
+        },
+        verifiedNameHistory: 'test',
+        confirmationValues: {},
+      },
+    };
+
+    const result = formValuesSelector(state);
+
+    expect(result.cccd).toEqual('0999888777');
+    expect(result.extended_profile).toContainEqual({ field_name: 'cccd', field_value: '0999888777' });
   });
 });

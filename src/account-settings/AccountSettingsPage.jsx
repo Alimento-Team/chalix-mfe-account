@@ -54,6 +54,15 @@ import { fetchCourseList } from '../notification-preferences/data/thunks';
 import NotificationSettings from '../notification-preferences/NotificationSettings';
 import { withLocation, withNavigate } from './hoc';
 
+const EXTENDED_PROFILE_FIELD_NAMES = new Set([
+  'cccd',
+  'job_title',
+  'birth_date',
+  'province',
+  'job_position',
+  'civil_servant_type',
+]);
+
 class AccountSettingsPage extends React.Component {
   constructor(props, context) {
     super(props, context);
@@ -105,7 +114,7 @@ class AccountSettingsPage extends React.Component {
   };
 
   isExtendedProfileField = (fieldName) => (
-    fieldName === 'job_title'
+    EXTENDED_PROFILE_FIELD_NAMES.has(fieldName)
     || this.getExtendedProfileEntries().some((field) => field.field_name === fieldName)
   );
 

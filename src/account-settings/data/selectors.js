@@ -88,6 +88,15 @@ const previousSiteLanguageSelector = createSelector(
   accountSettings => accountSettings.previousSiteLanguage,
 );
 
+const EXTENDED_PROFILE_FIELD_NAMES = new Set([
+  'cccd',
+  'job_title',
+  'birth_date',
+  'province',
+  'job_position',
+  'civil_servant_type',
+]);
+
 const countriesSelector = createSelector(
   accountSettingsSelector,
   accountSettings => accountSettings.countriesCodesList,
@@ -181,14 +190,29 @@ export const formValuesSelector = createSelector(
 
           if (index !== -1) {
             extendedProfile[index] = { field_name: draftFieldName, field_value: draftFieldValue };
+          } else if (EXTENDED_PROFILE_FIELD_NAMES.has(draftFieldName)) {
+            extendedProfile.push({ field_name: draftFieldName, field_value: draftFieldValue });
           }
         });
 
         formValues.extended_profile = [...extendedProfile];
+        extendedProfile.forEach((profileField) => {
+          if (!profileField || !profileField.field_name) {
+            return;
+          }
+          formValues[profileField.field_name] = profileField.field_value || '';
+        });
       } else {
         formValues[name] = chooseFormValue(drafts[name], value) || '';
       }
     });
+
+    Object.entries(drafts).forEach(([draftFieldName, draftFieldValue]) => {
+      if (EXTENDED_PROFILE_FIELD_NAMES.has(draftFieldName) && formValues[draftFieldName] === undefined) {
+        formValues[draftFieldName] = draftFieldValue;
+      }
+    });
+
     return formValues;
   },
 );
