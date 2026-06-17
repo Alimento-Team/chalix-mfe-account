@@ -26,12 +26,35 @@ import Head from './head/Head';
 
 const rootNode = createRoot(document.getElementById('root'));
 subscribe(APP_READY, () => {
+  const normalizeAbsoluteUrl = (rawUrl, fallbackUrl) => {
+    if (!rawUrl) {
+      return fallbackUrl;
+    }
+
+    const trimmed = String(rawUrl).trim();
+    if (!trimmed) {
+      return fallbackUrl;
+    }
+
+    if (/^https?:\/\//i.test(trimmed)) {
+      return trimmed;
+    }
+
+    // Support host-like values such as "apps.example.com" by applying current protocol.
+    if (/^[\w.-]+\.[a-z]{2,}(?::\d+)?(?:\/.*)?$/i.test(trimmed)) {
+      return `${window.location.protocol}//${trimmed}`;
+    }
+
+    return new URL(trimmed, window.location.origin).toString();
+  };
+
   // Handler for header navigation
   const handleHeaderNavigation = (tab) => {
     const config = getConfig();
-    const lmsBaseUrl = config.LMS_BASE_URL;
-    const mfeBaseUrl = config.BASE_URL;
-    const learnerDashboardUrl = `${mfeBaseUrl}/learner-dashboard`;
+    const lmsBaseUrl = normalizeAbsoluteUrl(config.LMS_BASE_URL, window.location.origin);
+    const rawLearnerDashboardUrl = config.LEARNER_DASHBOARD_URL || '/learner-dashboard';
+    const learnerDashboardUrl = normalizeAbsoluteUrl(rawLearnerDashboardUrl, `${window.location.origin}/learner-dashboard`)
+      .replace(/\/+$/, '');
     
     switch (tab) {
       case 'home':
@@ -40,7 +63,7 @@ subscribe(APP_READY, () => {
         break;
       case 'category':
         // Danh mục - go to learner dashboard MFE
-        window.location.href = learnerDashboardUrl;
+        window.location.href = `${learnerDashboardUrl}/`;
         break;
       case 'learning':
         // Học tập - go to LMS home
@@ -48,10 +71,7 @@ subscribe(APP_READY, () => {
         break;
       case 'personalize':
         // Cá nhân hóa - learner dashboard with personalized tab
-        // Build a safe URL that always includes a single trailing slash before query
-        window.location.href = learnerDashboardUrl.endsWith('/')
-          ? `${learnerDashboardUrl}?tab=personalized`
-          : `${learnerDashboardUrl}/?tab=personalized`;
+        window.location.href = `${learnerDashboardUrl}/?tab=personalized`;
         break;
       default:
         break;
@@ -109,6 +129,7 @@ initialize({
         // Also populate common MFE URLs from env for header/footer components
         ACCOUNT_SETTINGS_URL: process.env.ACCOUNT_SETTINGS_URL,
         ACCOUNT_PROFILE_URL: process.env.ACCOUNT_PROFILE_URL,
+        LEARNER_DASHBOARD_URL: process.env.LEARNER_DASHBOARD_URL,
         LMS_BASE_URL: process.env.LMS_BASE_URL,
         SUPPORT_URL: process.env.SUPPORT_URL,
         SHOW_PUSH_CHANNEL: process.env.SHOW_PUSH_CHANNEL === 'true',
