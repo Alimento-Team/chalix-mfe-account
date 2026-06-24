@@ -12,6 +12,8 @@ import { IntlProvider, injectIntl } from '@edx/frontend-platform/i18n';
 import AccountSettingsPage from '../AccountSettingsPage';
 import mockData from './mockData';
 
+const SAVE_MULTIPLE_SETTINGS_ACTION_TYPE = 'ACCOUNT_SETTINGS__SAVE_MULTIPLE_SETTINGS';
+
 const mockDispatch = jest.fn();
 jest.mock('@edx/frontend-platform/analytics', () => ({
   sendTrackingLogEvent: jest.fn(),
@@ -107,5 +109,157 @@ describe('AccountSettingsPage', () => {
     fireEvent.change(workExperienceSelect, { target: { value: '4' } });
 
     fireEvent.click(submitButton);
+  });
+
+  describe('buildSettingsArrayFromDrafts', () => {
+    it('includes basic account fields in the settings array', () => {
+      store = mockStore({
+        ...mockData,
+        accountSettings: {
+          ...mockData.accountSettings,
+          drafts: {
+            email: 'new@test.com',
+            name: 'New Name',
+            phone_number: '0123456789',
+          },
+        },
+      });
+
+      const { getByText } = render(reduxWrapper(<IntlAccountSettingsPage {...props} />));
+      fireEvent.click(getByText('Lưu thay đổi'));
+
+      const actions = store.getActions();
+      const saveMultipleAction = actions.find(a => a.type === SAVE_MULTIPLE_SETTINGS_ACTION_TYPE);
+
+      expect(saveMultipleAction).toBeDefined();
+      const { settingsArray } = saveMultipleAction.payload;
+
+      expect(settingsArray.find(s => s.formId === 'email')).toEqual({ formId: 'email', commitValues: 'new@test.com' });
+      expect(settingsArray.find(s => s.formId === 'name')).toEqual({ formId: 'name', commitValues: 'New Name' });
+      expect(settingsArray.find(s => s.formId === 'phone_number')).toEqual({ formId: 'phone_number', commitValues: '0123456789' });
+    });
+
+    it('groups extended profile fields into a single extended_profile entry', () => {
+      store = mockStore({
+        ...mockData,
+        accountSettings: {
+          ...mockData.accountSettings,
+          values: {
+            ...mockData.accountSettings.values,
+            extended_profile: [
+              { field_name: 'province', field_value: 'Ha Noi' },
+              { field_name: 'birth_date', field_value: '1984-01-01' },
+            ],
+          },
+          drafts: {
+            province: 'Ho Chi Minh',
+            birth_date: '1990-05-15',
+          },
+        },
+      });
+
+      const { getByText } = render(reduxWrapper(<IntlAccountSettingsPage {...props} />));
+      fireEvent.click(getByText('Lưu thay đổi'));
+
+      const actions = store.getActions();
+      const saveMultipleAction = actions.find(a => a.type === SAVE_MULTIPLE_SETTINGS_ACTION_TYPE);
+
+      expect(saveMultipleAction).toBeDefined();
+      const { settingsArray } = saveMultipleAction.payload;
+
+      const extendedProfileEntry = settingsArray.find(s => s.formId === 'extended_profile');
+      expect(extendedProfileEntry).toBeDefined();
+      expect(extendedProfileEntry.commitValues).toContainEqual({ field_name: 'province', field_value: 'Ho Chi Minh' });
+      expect(extendedProfileEntry.commitValues).toContainEqual({ field_name: 'birth_date', field_value: '1990-05-15' });
+
+      // Extended profile fields should NOT appear as separate entries
+      expect(settingsArray.find(s => s.formId === 'province')).toBeUndefined();
+      expect(settingsArray.find(s => s.formId === 'birth_date')).toBeUndefined();
+    });
+
+    it('includes both basic and extended profile fields when mixed drafts are present', () => {
+      store = mockStore({
+        ...mockData,
+        accountSettings: {
+          ...mockData.accountSettings,
+          values: {
+            ...mockData.accountSettings.values,
+            extended_profile: [
+              { field_name: 'province', field_value: 'Ha Noi' },
+            ],
+          },
+          drafts: {
+            email: 'updated@test.com',
+            name: 'Updated Name',
+            province: 'Ho Chi Minh',
+            birth_date: '1984-03-26',
+          },
+        },
+      });
+
+      const { getByText } = render(reduxWrapper(<IntlAccountSettingsPage {...props} />));
+      fireEvent.click(getByText('Lưu thay đổi'));
+
+      const actions = store.getActions();
+      const saveMultipleAction = actions.find(a => a.type === SAVE_MULTIPLE_SETTINGS_ACTION_TYPE);
+
+      expect(saveMultipleAction).toBeDefined();
+      const { settingsArray } = saveMultipleAction.payload;
+
+      // Basic fields are present
+      expect(settingsArray.find(s => s.formId === 'email')).toEqual({ formId: 'email', commitValues: 'updated@test.com' });
+      expect(settingsArray.find(s => s.formId === 'name')).toEqual({ formId: 'name', commitValues: 'Updated Name' });
+
+      // Extended profile fields are grouped
+      const extendedProfileEntry = settingsArray.find(s => s.formId === 'extended_profile');
+      expect(extendedProfileEntry).toBeDefined();
+      expect(extendedProfileEntry.commitValues).toContainEqual({ field_name: 'province', field_value: 'Ho Chi Minh' });
+      expect(extendedProfileEntry.commitValues).toContainEqual({ field_name: 'birth_date', field_value: '1984-03-26' });
+    });
+
+    it('excludes password and confirm_password fields from the settings array', () => {
+      store = mockStore({
+        ...mockData,
+        accountSettings: {
+          ...mockData.accountSettings,
+          drafts: {
+            name: 'Test User',
+            password: 'secret123',
+            confirm_password: 'secret123',
+          },
+        },
+      });
+
+      const { getByText } = render(reduxWrapper(<IntlAccountSettingsPage {...props} />));
+      fireEvent.click(getByText('Lưu thay đổi'));
+
+      const actions = store.getActions();
+      const saveMultipleAction = actions.find(a => a.type === SAVE_MULTIPLE_SETTINGS_ACTION_TYPE);
+
+      expect(saveMultipleAction).toBeDefined();
+      const { settingsArray } = saveMultipleAction.payload;
+
+      expect(settingsArray.find(s => s.formId === 'password')).toBeUndefined();
+      expect(settingsArray.find(s => s.formId === 'confirm_password')).toBeUndefined();
+      expect(settingsArray.find(s => s.formId === 'name')).toEqual({ formId: 'name', commitValues: 'Test User' });
+    });
+
+    it('does not dispatch saveMultipleSettings when drafts are empty', () => {
+      store = mockStore({
+        ...mockData,
+        accountSettings: {
+          ...mockData.accountSettings,
+          drafts: {},
+        },
+      });
+
+      const { getByText } = render(reduxWrapper(<IntlAccountSettingsPage {...props} />));
+      fireEvent.click(getByText('Lưu thay đổi'));
+
+      const actions = store.getActions();
+      const saveMultipleAction = actions.find(a => a.type === SAVE_MULTIPLE_SETTINGS_ACTION_TYPE);
+
+      expect(saveMultipleAction).toBeUndefined();
+    });
   });
 });
